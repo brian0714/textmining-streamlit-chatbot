@@ -8,10 +8,10 @@ from gensim.utils import simple_preprocess
 import matplotlib.pyplot as plt
 from pdf_context import preprocess_pdf_sentences
 
-def init_session_state(sentences):
+def init_session_state(options):
     st.session_state.setdefault("selected_indices_3d", [0, 1])
     st.session_state.setdefault("trigger_plot_3d", False)
-    st.session_state.setdefault("sentence_picker", [f"Sentence {i+1}: {s}" for i, s in enumerate(sentences[:2])])
+    st.session_state.setdefault("sentence_picker", options[:2])
 
 def multiselect_changed(key, new_value):
     if st.session_state.get(key) != new_value:
@@ -49,8 +49,6 @@ def _draw_lines(reduced_vectors, model, tokenized_sentences, hex_colors):
     return traces
 
 def run(sentences, source="manual"):
-    st.markdown("---")
-    st.subheader("🧭 3D Vector Space View")
 
     if source == "pdf":
         display_sentences = preprocess_pdf_sentences(raw_text=sentences, tokenize=False)
@@ -59,20 +57,29 @@ def run(sentences, source="manual"):
         display_sentences = sentences
         preprocessed_sentences = sentences
 
-    # Safe truncation for very long sentences
     MAX_LEN = 200
     safe_display_sentences = [s if len(s) <= MAX_LEN else s[:MAX_LEN] + "..." for s in display_sentences]
 
-    # multiselect options
-    # all_options = [f"Sentence {i+1}: {s}" for i, s in enumerate(display_sentences)]
-    all_options = [f"Sentence {i+1}: {s}" for i, s in enumerate(safe_display_sentences)]
+    # --- 建立 index-based options ---
+    options = [f"Sentence {i+1}" for i in range(len(display_sentences))]
+    label_to_sentence = {f"Sentence {i+1}": s for i, s in enumerate(safe_display_sentences)}
 
-    init_session_state(display_sentences)
+    init_session_state(options)
+
+    st.markdown("---")
+
+    with st.expander("📄 Show Input Sentences", expanded=False):
+        for label in options:
+            st.markdown(f"**{label}:** {label_to_sentence[label]}")
+
+    st.markdown("---")
+    st.subheader("🧭 3D Vector Space View")
+    st.markdown("---")
 
     with st.expander("🎯 Select Sentences to Show Connection Lines", expanded=True):
         selected_labels = st.multiselect(
             "Choose sentences to visualize:",
-            options=all_options,
+            options=options,
             default=st.session_state["sentence_picker"],
             key=None
         )
@@ -82,14 +89,12 @@ def run(sentences, source="manual"):
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🚀 Run Visualization", key="run_viz_button_3d"):
-                st.session_state["selected_indices_3d"] = [
-                    i for i, label in enumerate(all_options) if label in st.session_state["sentence_picker"]
-                ]
+                st.session_state["selected_indices_3d"] = [int(label.split()[1]) - 1 for label in st.session_state["sentence_picker"]]
                 st.session_state["trigger_plot_3d"] = True
         with col2:
             if st.button("🔁 Reset Selection", key="reset_viz_button_3d"):
                 st.session_state["selected_indices_3d"] = [0, 1]
-                st.session_state["sentence_picker"] = [f"Sentence {i+1}: {s}" for i, s in enumerate(safe_display_sentences[:2])]
+                st.session_state["sentence_picker"] = options[:2]
                 st.session_state["trigger_plot_3d"] = False
 
     if not st.session_state.get("trigger_plot_3d", False):
@@ -101,7 +106,7 @@ def run(sentences, source="manual"):
 
         flat_tokens = [word for sentence in tokenized_sentences for word in sentence]
         if not tokenized_sentences or not flat_tokens:
-            st.error(f"❌ No valid words found.\n{sentences}\n\n{tokenized_sentences}\n\n{flat_tokens}")
+            st.error("❌ No valid words found.")
             return
 
         model = Word2Vec(tokenized_sentences, vector_size=100, window=5, min_count=1, workers=4)
@@ -142,15 +147,4 @@ def run(sentences, source="manual"):
         )
 
         st.plotly_chart(fig, use_container_width=True, key=f"view3d_plot_{int(time.time()*1000)}")
-
-    with st.expander("📄 Show Input Sentences", expanded=False):
-        max_display = 50
-        num_sentences = len(display_sentences)
-
-        if num_sentences > max_display:
-            st.markdown(f"⚡ Showing only the first {max_display} of {num_sentences} sentences:")
-            display_sentences = display_sentences[:max_display]
-
-        for i, sentence in enumerate(display_sentences, 1):
-            st.markdown(f"**Sentence {i}:** {sentence}")
 
