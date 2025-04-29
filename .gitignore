@@ -1,5 +1,5 @@
 .streamlit/secrets.toml
-models\ckip-models\ckip-bert-ws
+models/ckip-models/ckip-bert-ws
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
