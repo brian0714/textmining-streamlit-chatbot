@@ -3,8 +3,12 @@ streamlit
 
 # LLM Libraries
 openai
+autogen
 autogen-agentchat
 autogen-ext[openai]
+google-generativeai
+ag2[gemini]
+ag2[openai]
 
 # Data Processing
 ckip-transformers
